@@ -1,7 +1,7 @@
 # 🎬 抖音无水印视频 / 图文下载器
 
 > 轻量 Python 工具：复制抖音分享链接，一键下载**无水印视频**或**图文原图**。
-> 仅依赖 `requests`，无需登录、无需签名、无需浏览器。
+> 仅依赖 `requests`，无需登录、无需签名、无需浏览器。自带**图形界面**与命令行双模式。
 
 ```bash
 python douyin_dl.py "7.43 复制打开抖音，看看视频 https://v.douyin.com/xxxx/ 复制此链接"
@@ -10,11 +10,16 @@ python douyin_dl.py "7.43 复制打开抖音，看看视频 https://v.douyin.com
 ## ✨ 功能特性
 
 - ✅ **无水印下载**：自动把 `playwm` 替换为 `play`，获取无水印版本
+- ✅ **图形界面 / 命令行双模式**：双击 `douyin_gui.bat` 即可用图形界面，或 `--gui` 启动
 - ✅ **视频 / 图文双支持**：自动识别作品类型，图集下载全部原图
+- ✅ **封面 / 背景音乐**：`--cover` 存封面图、`--music` 存背景音乐
+- ✅ **剪贴板一键粘贴**：`--clipboard` 直接读取系统剪贴板链接（GUI 内也有粘贴按钮）
 - ✅ **智能识别链接**：粘贴整段分享文案也能自动提取链接
 - ✅ **多种链接格式**：`v.douyin.com` 短链 / `iesdouyin.com` / `douyin.com/video`
 - ✅ **批量下载**：txt 每行一个链接，内置限速避免被 WAF
-- ✅ **进度显示**、失败自动重试、Windows 兼容（自动处理编码）
+- ✅ **进度 + 速度 + 剩余时间**、失败自动重试
+- ✅ **记住上次目录**：自动保存输出目录配置
+- ✅ **中英双语**：`--lang en` 切换英文界面
 
 ## 📦 安装
 
@@ -24,11 +29,19 @@ pip install requests
 
 ## 🚀 使用
 
+### 🖥️ 图形界面（推荐新手）
+```bash
+python douyin_dl.py --gui
+# Windows 上也可直接双击 douyin_gui.bat
+```
+
 ### 单条下载
 ```bash
 python douyin_dl.py "https://v.douyin.com/xxxx/"
 # 或直接粘贴整段分享文案
 python douyin_dl.py "7.43 复制打开抖音 https://v.douyin.com/xxxx/ 复制此链接"
+# 或直接读剪贴板
+python douyin_dl.py --clipboard
 ```
 
 ### 批量下载
@@ -40,14 +53,18 @@ python douyin_dl.py links.txt -b
 ### 其他参数
 ```bash
 python douyin_dl.py <链接> -o ./downloads   # 指定保存目录
+python douyin_dl.py <链接> --cover          # 同时下载封面
+python douyin_dl.py <链接> --music          # 同时下载背景音乐
 python douyin_dl.py <链接> --json           # 输出机器可读 JSON
+python douyin_dl.py <链接> --lang en        # 英文界面
+python douyin_dl.py --version               # 查看版本
 ```
 
 ## 🔧 原理简述
 
 1. 解析分享短链 → 跟随重定向拿到 `aweme_id`
 2. 用移动端 UA 请求 `https://www.iesdouyin.com/share/video/<id>`
-3. 从页面内嵌 `_ROUTER_DATA` 提取 `play_addr.url_list[0]`
+3. 从页面内嵌 `_ROUTER_DATA` / `RENDER_DATA` 提取 `play_addr.url_list[0]`
 4. 地址中 `playwm` → `play`，获得无水印地址并下载
 
 ## 🙏 致谢
@@ -58,7 +75,7 @@ python douyin_dl.py <链接> --json           # 输出机器可读 JSON
 - [belingud/douyin-downloader-skill](https://github.com/belingud/douyin-downloader-skill)（MIT）—— 图文处理思路
 - [aehyok/douyin-video-download](https://github.com/aehyok/douyin-video-download)（MIT）—— 链接解析思路
 
-本项目为独立实现，并在以下方面做了增强：更健壮的 JSON 提取（兼容 `_ROUTER_DATA` / `RENDER_DATA` 两种形态）、自动识别视频/图文、批量限速、重试与错误处理。
+本项目为独立实现，并在以下方面做了增强：更健壮的 JSON 提取（兼容 `_ROUTER_DATA` / `RENDER_DATA` 两种形态）、自动识别视频/图文、图文原图下载、封面/音乐可选下载、图形界面、剪贴板读取、下载速度与剩余时间显示、批量限速、重试与错误处理、失效链接友好提示、中英双语。
 
 ## ⚠️ 免责声明
 
@@ -88,7 +105,7 @@ python test_douyin.py   # 单元测试（无需网络）
 | 类别 | 项目 |
 |---|---|
 | ✈️ 可视化 | [飞行足迹 3D](https://github.com/qgeng1465/flight-trajectory-visualizer) · [TS→MP4](https://github.com/qgeng1465/ts-to-mp4-converter) · [MP4转换](https://github.com/qgeng1465/mp4-converter) · [音频工具箱](https://github.com/qgeng1465/audio-toolbox) |
-| 🎬 下载 | [抖音](https://github.com/qgeng1465/douyin-watermark-free-downloader) · [B站](https://github.com/qgeng1465/bilibili-video-downloader) · [YouTube](https://github.com/qgeng1465/youtube-downloader) · [小红书](https://github.com/qgeng1465/xiaohongshu-downloader) · [公众号](https://github.com/qgeng1465/wechat-article-exporter) · [直播录制](https://github.com/qgeng1465/LiveRecorder) |
+| 🎬 下载 | [抖音](https://github.com/qgeng1465/douyin-watermark-free-downloader) · [TikTok](https://github.com/qgeng1465/tiktok-watermark-free-downloader) · [B站](https://github.com/qgeng1465/bilibili-video-downloader) · [YouTube](https://github.com/qgeng1465/youtube-downloader) · [小红书](https://github.com/qgeng1465/xiaohongshu-downloader) · [公众号](https://github.com/qgeng1465/wechat-article-exporter) · [直播录制](https://github.com/qgeng1465/LiveRecorder) |
 | 🧬 AI 智能体 | [AI4Bio](https://github.com/qgeng1465/ai4bio-agents) · [AI4Chem](https://github.com/qgeng1465/ai4chem-agents) · [AI4科研](https://github.com/qgeng1465/ai4research-agents) · [日常生活](https://github.com/qgeng1465/daily-agents) |
 
 ## 📄 License
