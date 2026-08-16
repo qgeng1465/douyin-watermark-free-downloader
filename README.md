@@ -17,6 +17,8 @@ python douyin_dl.py "7.43 复制打开抖音，看看视频 https://v.douyin.com
 - ✅ **智能识别链接**：粘贴整段分享文案也能自动提取链接
 - ✅ **多种链接格式**：`v.douyin.com` 短链 / `iesdouyin.com` / `douyin.com/video`
 - ✅ **批量下载**：txt 每行一个链接，内置限速避免被 WAF
+- ✅ **断点续传**：`.part` 文件 + HTTP Range，下载中断后重跑自动从断点接上（不再从头下）；失败自动重试 3 次
+- ✅ **跳过已下载**：重复下载同一链接时自动跳过已存在的文件（视频/封面/音乐/图集逐文件判断，`--redownload` 强制重下）
 - ✅ **进度 + 速度 + 剩余时间**、失败自动重试
 - ✅ **记住上次目录**：自动保存输出目录配置
 - ✅ **中英双语**：`--lang en` 切换英文界面
@@ -57,6 +59,7 @@ python douyin_dl.py <链接> --cover          # 同时下载封面
 python douyin_dl.py <链接> --music          # 同时下载背景音乐
 python douyin_dl.py <链接> --json           # 输出机器可读 JSON
 python douyin_dl.py <链接> --lang en        # 英文界面
+python douyin_dl.py <链接> --redownload    # 忽略已下载文件，强制重新下载
 python douyin_dl.py --version               # 查看版本
 ```
 
@@ -75,7 +78,7 @@ python douyin_dl.py --version               # 查看版本
 - [belingud/douyin-downloader-skill](https://github.com/belingud/douyin-downloader-skill)（MIT）—— 图文处理思路
 - [aehyok/douyin-video-download](https://github.com/aehyok/douyin-video-download)（MIT）—— 链接解析思路
 
-本项目为独立实现，并在以下方面做了增强：更健壮的 JSON 提取（兼容 `_ROUTER_DATA` / `RENDER_DATA` 两种形态）、自动识别视频/图文、图文原图下载、封面/音乐可选下载、图形界面、剪贴板读取、下载速度与剩余时间显示、批量限速、重试与错误处理、失效链接友好提示、中英双语。
+本项目为独立实现，并在以下方面做了增强：更健壮的 JSON 提取（兼容 `_ROUTER_DATA` / `RENDER_DATA` 两种形态）、自动识别视频/图文、图文原图下载、封面/音乐可选下载、图形界面、剪贴板读取、下载速度与剩余时间显示、断点续传、跳过已下载、批量限速、重试与错误处理、失效链接友好提示、中英双语。
 
 ## ⚠️ 免责声明
 
@@ -105,7 +108,7 @@ python test_douyin.py   # 单元测试（无需网络）
 | 类别 | 项目 |
 |---|---|
 | ✈️ 可视化 | [飞行足迹 3D](https://github.com/qgeng1465/flight-trajectory-visualizer) · [TS→MP4](https://github.com/qgeng1465/ts-to-mp4-converter) · [MP4转换](https://github.com/qgeng1465/mp4-converter) · [音频工具箱](https://github.com/qgeng1465/audio-toolbox) |
-| 🎬 下载 | [抖音](https://github.com/qgeng1465/douyin-watermark-free-downloader) · [TikTok](https://github.com/qgeng1465/tiktok-watermark-free-downloader) · [B站](https://github.com/qgeng1465/bilibili-video-downloader) · [YouTube](https://github.com/qgeng1465/youtube-downloader) · [小红书](https://github.com/qgeng1465/xiaohongshu-downloader) · [公众号](https://github.com/qgeng1465/wechat-article-exporter) · [直播录制](https://github.com/qgeng1465/LiveRecorder) |
+| 🎬 下载 | [抖音](https://github.com/qgeng1465/douyin-watermark-free-downloader) · [B站](https://github.com/qgeng1465/bilibili-video-downloader) · [YouTube](https://github.com/qgeng1465/youtube-downloader) · [小红书](https://github.com/qgeng1465/xiaohongshu-downloader) · [公众号](https://github.com/qgeng1465/wechat-article-exporter) · [直播录制](https://github.com/qgeng1465/LiveRecorder) |
 | 🧬 AI 智能体 | [AI4Bio](https://github.com/qgeng1465/ai4bio-agents) · [AI4Chem](https://github.com/qgeng1465/ai4chem-agents) · [AI4科研](https://github.com/qgeng1465/ai4research-agents) · [日常生活](https://github.com/qgeng1465/daily-agents) |
 
 ## 📄 License

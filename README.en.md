@@ -17,6 +17,8 @@ python douyin_dl.py "7.43 复制打开抖音，看看视频 https://v.douyin.com
 - ✅ **Smart link detection**: paste an entire share message — the link is extracted automatically
 - ✅ **Many link formats**: `v.douyin.com` short links / `iesdouyin.com` / `douyin.com/video`
 - ✅ **Batch download**: a txt file with one link per line, built-in throttling to avoid WAF
+- ✅ **Resumable downloads**: `.part` file + HTTP Range — an interrupted download resumes from where it left off on the next run (no more starting over); 3 automatic retries on failure
+- ✅ **Skip already downloaded**: re-running the same link skips files that already exist (video / cover / music / photo slides, checked per-file; `--redownload` forces a fresh download)
 - ✅ **Progress + speed + ETA**, automatic retries
 - ✅ **Remembers your output folder** via a local config file
 - ✅ **Bilingual**: `--lang en` for an English interface
@@ -57,6 +59,7 @@ python douyin_dl.py <link> --cover          # also save the cover
 python douyin_dl.py <link> --music          # also save the music
 python douyin_dl.py <link> --json           # machine-readable JSON output
 python douyin_dl.py <link> --lang en        # English UI
+python douyin_dl.py <link> --redownload    # ignore existing files, force re-download
 python douyin_dl.py --version               # version
 ```
 
@@ -75,7 +78,7 @@ The parsing approach references these open-source projects (public community tec
 - [belingud/douyin-downloader-skill](https://github.com/belingud/douyin-downloader-skill) (MIT) — photo-post handling
 - [aehyok/douyin-video-download](https://github.com/aehyok/douyin-video-download) (MIT) — link parsing
 
-This is an independent implementation, enhanced with: robust JSON extraction (both `_ROUTER_DATA` and `RENDER_DATA`), auto video/photo detection, original-image slides, optional cover/music, a GUI, clipboard reading, download speed & ETA, batch throttling, retries, friendly dead-link handling, and bilingual output.
+This is an independent implementation, enhanced with: robust JSON extraction (both `_ROUTER_DATA` and `RENDER_DATA`), auto video/photo detection, original-image slides, optional cover/music, a GUI, clipboard reading, download speed & ETA, resumable downloads, skip-already-downloaded, batch throttling, retries, friendly dead-link handling, and bilingual output.
 
 ## ⚠️ Disclaimer
 

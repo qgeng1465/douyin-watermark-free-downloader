@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """douyin_dl 核心逻辑单元测试（无需真实网络）"""
-import sys, os, json
+import sys, os, json, tempfile
 from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import douyin_dl as D
@@ -101,7 +101,7 @@ import subprocess
 r = subprocess.run([sys.executable, "douyin_dl.py", "--help"], capture_output=True, text=True)
 check("cli --help exit0", r.returncode == 0, r.stderr[:200])
 r2 = subprocess.run([sys.executable, "douyin_dl.py", "--version"], capture_output=True, text=True)
-check("cli --version", r2.returncode == 0 and "2.0.0" in r2.stdout, r2.stdout[:80])
+check("cli --version", r2.returncode == 0 and "2.1.0" in r2.stdout, r2.stdout[:80])
 
 # 13. 集成：download_one 全流程（stub session，无外网）
 VIDEO_BYTES = b"FAKE-MP4-BYTES-" * 1000  # ~14KB 假视频
@@ -110,7 +110,7 @@ class _FakeResp:
         self.url, self.text, self._content, self.status_code = url, text, content, status
         self.headers = {"Content-Length": str(len(content))}
     def raise_for_status(self):
-        if self.status_code != 200: raise Exception(f"HTTP {self.status_code}")
+        if self.status_code >= 400: raise Exception(f"HTTP {self.status_code}")
     def iter_content(self, chunk_size=1 << 16):
         for i in range(0, len(self._content), chunk_size):
             yield self._content[i:i + chunk_size]
@@ -131,7 +131,43 @@ class _FakeSession:
             return _FakeResp("https://www.douyin.com/video/7412345678901234567")
         return _FakeResp(url, content=VIDEO_BYTES)
 
-import tempfile
+# 13.1 断点续传：.part + Range + 原子改名
+class _ResumeSession:
+    def __init__(self):
+        self.ranges = []
+    def get(self, url, headers=None, **kw):
+        self.ranges.append((headers or {}).get("Range"))
+        has = bool(headers and headers.get("Range"))
+        return _FakeResp(url, content=b"WORLD", status=(206 if has else 200))
+
+with tempfile.TemporaryDirectory() as td2:
+    td2 = Path(td2)
+    dest = td2 / "v.mp4"
+    (td2 / "v.mp4.part").write_bytes(b"HELLO")  # 已有 5 字节
+    rs = _ResumeSession()
+    ok = D.download("https://aweme.snssdk.com/aweme/v1/play/?x=1", dest, rs,
+                    {"User-Agent": "ua"}, label="v", quiet=True)
+    check("resume appends part", ok and dest.read_bytes() == b"HELLOWORLD", f"ok={ok}")
+    check("resume sends Range", rs.ranges == ["bytes=5-"], f"ranges={rs.ranges}")
+    check("resume renames part", not (td2 / "v.mp4.part").exists())
+
+with tempfile.TemporaryDirectory() as td3:
+    td3 = Path(td3)
+    dest3 = td3 / "v.mp4"
+    rs3 = _ResumeSession()
+    ok3 = D.download("https://aweme.snssdk.com/aweme/v1/play/?x=2", dest3, rs3,
+                     {"User-Agent": "ua"}, label="v", quiet=True)
+    check("download no part no range", ok3 and rs3.ranges == [None] and dest3.read_bytes() == b"WORLD", f"ok={ok3}")
+
+# 13.2 跳过已下载：视频文件已存在时不重复下载（文件保持原样）
+with tempfile.TemporaryDirectory() as td4:
+    td4 = Path(td4)
+    existing = td4 / "作者A_集成测试.mp4"
+    existing.write_bytes(b"OLD")
+    info2 = D.download_one("https://v.douyin.com/abc123/", td4, _FakeSession(), lang="zh")
+    check("skip existing video", info2 and existing.read_bytes() == b"OLD",
+          f"file={existing.read_bytes()[:10]}")
+
 with tempfile.TemporaryDirectory() as td:
     info = D.download_one("https://v.douyin.com/abc123/", Path(td), _FakeSession(), lang="zh")
     fp = Path(info["file"]) if info else None

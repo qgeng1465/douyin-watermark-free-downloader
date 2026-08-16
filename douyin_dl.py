@@ -41,7 +41,7 @@ if hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 UA_MOBILE = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -96,6 +96,7 @@ _ZH = {
     "gui_downloading": "下载中，请稍候…",
     "gui_open": "打开目录",
     "ok": "OK",
+    "exists": "已存在，跳过",
 }
 _EN = {
     "proj": "Douyin Watermark-free Downloader",
@@ -132,6 +133,7 @@ _EN = {
     "gui_downloading": "Downloading, please wait…",
     "gui_open": "Open folder",
     "ok": "OK",
+    "exists": "already downloaded, skipped",
 }
 
 
@@ -353,22 +355,35 @@ def _fmt_eta(secs: float) -> str:
     return f"{secs:.0f}s"
 
 
+def _exists_nonempty(p: Path) -> bool:
+    """文件存在且非空（用于跳过已下载 / 空文件检查）。"""
+    return p.exists() and p.stat().st_size > 0
+
+
 def download(url: str, dest: Path, session: requests.Session, headers: dict,
              label: str = "", log: Callable[[str], None] = print, quiet: bool = False):
-    """下载到 dest，带进度（百分比/速度/剩余时间）与重试。
+    """下载到 dest（先写 dest.part 断点续传，成功后原子改名），带进度与重试。
 
-    quiet=False：控制台用 \\r 原位刷新进度；quiet=True：每次进度通过 log 回调输出（供 GUI 用）。
+    quiet=False：控制台用 \r 原位刷新进度；quiet=True：每次进度通过 log 回调输出（供 GUI 用）。
     """
-    """下载到 dest，带进度（百分比/速度/剩余时间）与重试。"""
+    part = dest.with_name(dest.name + ".part")
     for attempt in range(3):
         try:
-            with session.get(url, headers=headers, stream=True, timeout=(10, 90)) as r:
+            have = part.stat().st_size if part.exists() else 0
+            hdrs = dict(headers or {})
+            if have:
+                hdrs["Range"] = f"bytes={have}-"
+            with session.get(url, headers=hdrs, stream=True, timeout=(10, 90)) as r:
+                if r.status_code == 416:  # Range 越界 = 文件其实已完整
+                    os.replace(part, dest)
+                    return True
                 r.raise_for_status()
-                total = int(r.headers.get("Content-Length") or 0)
-                done = 0
+                partial = r.status_code == 206  # 服务器支持断点续传
+                total = int(r.headers.get("Content-Length") or 0) + (have if partial else 0)
+                done = have if partial else 0
                 t0 = time.time()
                 last_pct = -10
-                with open(dest, "wb") as f:
+                with open(part, "ab" if partial else "wb") as f:
                     for chunk in r.iter_content(chunk_size=1 << 16):
                         if not chunk:
                             continue
@@ -388,12 +403,13 @@ def download(url: str, dest: Path, session: requests.Session, headers: dict,
                                 else:
                                     sys.stdout.write(line)
                                     sys.stdout.flush()
+                if not _exists_nonempty(part):
+                    raise ValueError("empty")
+                os.replace(part, dest)
                 if not quiet:
                     sys.stdout.write("\r" + " " * 70 + "\r")
-                if os.path.getsize(dest) == 0:
-                    raise ValueError("empty")
                 return True
-        except (requests.RequestException, ValueError) as e:
+        except (requests.RequestException, ValueError, OSError) as e:
             log(f"  [!] {t('zh', 'download_fail', n=attempt + 1, e=e)}")
             time.sleep(2 * (attempt + 1))
     return False
@@ -416,7 +432,7 @@ def _explain_failure(data) -> str:
 # ---------- 单个作品处理 ----------
 def download_one(link_or_text: str, out_dir: Path, session: requests.Session,
                  lang: str = "zh", cover: bool = False, music: bool = False,
-                 log: Callable[[str], None] = print) -> Optional[dict]:
+                 redownload: bool = False, log: Callable[[str], None] = print) -> Optional[dict]:
     """处理单个分享链接，返回解析信息。"""
     url = extract_url(link_or_text)
     if not url:
@@ -458,17 +474,23 @@ def download_one(link_or_text: str, out_dir: Path, session: requests.Session,
         video_url = no_watermark(info["video_url"])
         fname = sanitize_name(f"{info['author']}_{info['title']}") or aweme_id
         dest = out_dir / f"{fname}.mp4"
-        if download(video_url, dest, session, {"User-Agent": UA_MOBILE}, label=video_label, log=log, quiet=quiet):
+        if _exists_nonempty(dest) and not redownload:
+            log(f"  [·] {t(lang, 'exists')}: {dest.name}")
+        elif download(video_url, dest, session, {"User-Agent": UA_MOBILE}, label=video_label, log=log, quiet=quiet):
             log(f"  [✓] {t(lang, 'video_saved', path=dest)}")
         info["file"] = str(dest)
         if cover and info["cover_url"]:
             cdest = dest.with_suffix(".jpg")
-            if download(info["cover_url"], cdest, session, {"User-Agent": UA_MOBILE}, label="cover", log=log, quiet=quiet):
+            if _exists_nonempty(cdest) and not redownload:
+                log(f"  [·] {t(lang, 'exists')}: {cdest.name}")
+            elif download(info["cover_url"], cdest, session, {"User-Agent": UA_MOBILE}, label="cover", log=log, quiet=quiet):
                 log(f"  [✓] {t(lang, 'cover_saved', path=cdest)}")
             info["cover"] = str(cdest)
         if music and info["music_url"]:
             mdest = dest.with_suffix(".mp3")
-            if download(info["music_url"], mdest, session, {"User-Agent": UA_MOBILE}, label="music", log=log, quiet=quiet):
+            if _exists_nonempty(mdest) and not redownload:
+                log(f"  [·] {t(lang, 'exists')}: {mdest.name}")
+            elif download(info["music_url"], mdest, session, {"User-Agent": UA_MOBILE}, label="music", log=log, quiet=quiet):
                 log(f"  [✓] {t(lang, 'music_saved', path=mdest)}")
             info["music"] = str(mdest)
     elif info["type"] == "images" and info["images"]:
@@ -482,7 +504,9 @@ def download_one(link_or_text: str, out_dir: Path, session: requests.Session,
             if len(ext) > 5:
                 ext = ".jpg"
             dest = sub / f"{i:02d}{ext}"
-            if download(img_url, dest, session, {"User-Agent": UA_MOBILE}, label=f"img{i}", log=log, quiet=quiet):
+            if _exists_nonempty(dest) and not redownload:
+                ok += 1
+            elif download(img_url, dest, session, {"User-Agent": UA_MOBILE}, label=f"img{i}", log=log, quiet=quiet):
                 ok += 1
         log(f"  [✓] {t(lang, 'album_saved', ok=ok, total=len(info['images']), dir=sub)}")
         info["dir"] = str(sub)
@@ -554,8 +578,10 @@ def run_gui(lang: str) -> int:
     opt_row.pack(fill="x", padx=12, pady=(10, 0))
     cb_cover = tk.BooleanVar(value=False)
     cb_music = tk.BooleanVar(value=False)
+    cb_redownload = tk.BooleanVar(value=False)
     tk.Checkbutton(opt_row, text="封面 cover", variable=cb_cover).pack(side="left")
     tk.Checkbutton(opt_row, text="音乐 music", variable=cb_music).pack(side="left", padx=10)
+    tk.Checkbutton(opt_row, text="重下 redownload", variable=cb_redownload).pack(side="left", padx=10)
 
     # 按钮
     btn = tk.Button(root, text=t(lang, "gui_download"), width=18)
@@ -569,14 +595,15 @@ def run_gui(lang: str) -> int:
         log_box.see(tk.END)
         log_box.configure(state="disabled")
 
-    def worker(url_text, out_str, with_cover, with_music):
+    def worker(url_text, out_str, with_cover, with_music, with_redownload):
         def log(msg):
             print(msg)
             q.put(msg)
         try:
             save_config({"output": out_str})
             info = download_one(url_text, Path(out_str), session, lang=lang,
-                                cover=with_cover, music=with_music, log=log)
+                                cover=with_cover, music=with_music,
+                                redownload=with_redownload, log=log)
             if info:
                 q.put(f"[✓] {t(lang, 'ok')} {info.get('file') or info.get('dir', '')}")
         except Exception as e:
@@ -594,7 +621,7 @@ def run_gui(lang: str) -> int:
         btn.configure(state="disabled", text=t(lang, "gui_downloading"))
         out_str = out_entry.get().strip() or "downloads"
         import threading
-        threading.Thread(target=worker, args=(text, out_str, cb_cover.get(), cb_music.get()), daemon=True).start()
+        threading.Thread(target=worker, args=(text, out_str, cb_cover.get(), cb_music.get(), cb_redownload.get()), daemon=True).start()
 
     def poll():
         try:
@@ -631,10 +658,17 @@ def main():
     ap.add_argument("--lang", choices=["zh", "en"], default=None, help="界面语言 (默认自动)")
     ap.add_argument("--gui", action="store_true", help="启动图形界面")
     ap.add_argument("--no-config", action="store_true", help="不使用配置文件记住上次目录")
+    ap.add_argument("--redownload", action="store_true", help="忽略已下载文件，强制重新下载")
     ap.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     args = ap.parse_args()
 
-    lang = detect_lang(args.lang)
+    cfg = load_config()
+    if args.lang:
+        lang = args.lang
+    elif not args.no_config and cfg.get("lang"):
+        lang = cfg["lang"]
+    else:
+        lang = detect_lang(None)
 
     if args.gui:
         return run_gui(lang)
@@ -650,7 +684,6 @@ def main():
         ap.print_help()
         return 1
 
-    cfg = load_config()
     out_str = args.output or ("" if args.no_config else cfg.get("output")) or "downloads"
     out_dir = Path(out_str)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -670,7 +703,7 @@ def main():
         for i, link in enumerate(links, 1):
             print(t(lang, "batch_item", i=i, total=len(links)))
             r = download_one(link, out_dir, session, lang=lang,
-                             cover=args.cover, music=args.music)
+                             cover=args.cover, music=args.music, redownload=args.redownload)
             if r:
                 results.append(r)
                 ok += 1
@@ -683,7 +716,7 @@ def main():
             print(json.dumps(results, ensure_ascii=False, indent=2))
     else:
         r = download_one(args.input, out_dir, session, lang=lang,
-                         cover=args.cover, music=args.music)
+                         cover=args.cover, music=args.music, redownload=args.redownload)
         if args.json and r:
             print(json.dumps(r, ensure_ascii=False, indent=2))
     return 0
