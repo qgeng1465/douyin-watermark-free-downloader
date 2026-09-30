@@ -101,7 +101,7 @@ import subprocess
 r = subprocess.run([sys.executable, "douyin_dl.py", "--help"], capture_output=True, text=True)
 check("cli --help exit0", r.returncode == 0, r.stderr[:200])
 r2 = subprocess.run([sys.executable, "douyin_dl.py", "--version"], capture_output=True, text=True)
-check("cli --version", r2.returncode == 0 and "2.1.0" in r2.stdout, r2.stdout[:80])
+check("cli --version", r2.returncode == 0 and D.__version__ in r2.stdout, r2.stdout[:80])
 
 # 13. 集成：download_one 全流程（stub session，无外网）
 VIDEO_BYTES = b"FAKE-MP4-BYTES-" * 1000  # ~14KB 假视频

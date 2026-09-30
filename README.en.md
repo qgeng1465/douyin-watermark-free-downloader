@@ -1,5 +1,9 @@
 # 🎬 Douyin Watermark-free Video / Photo Downloader
 
+<!-- README-I18N:START -->
+[汉语](./README.md) | **English**
+<!-- README-I18N:END -->
+
 > A lightweight Python tool: paste a Douyin (TikTok China) share link and download the **watermark-free video** or **original photo slides** in one click.
 > Only depends on `requests` — no login, no signature, no browser. Comes with both a **GUI** and a **CLI**.
 

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.part
+downloads/
+*.egg-info/
+.DS_Store

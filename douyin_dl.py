@@ -41,7 +41,7 @@ if hasattr(sys.stderr, "reconfigure"):
     except Exception:
         pass
 
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 UA_MOBILE = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
@@ -473,7 +473,8 @@ def download_one(link_or_text: str, out_dir: Path, session: requests.Session,
         log(f"  [*] {t(lang, 'video_info', title=info['title'][:40] or '(无标题)', author=info['author'] or '未知')}")
         video_url = no_watermark(info["video_url"])
         fname = sanitize_name(f"{info['author']}_{info['title']}") or aweme_id
-        dest = out_dir / f"{fname}.mp4"
+        # aweme_id 后缀保证不同作品不互相顶掉（同作者空标题等同名场景），同一作品重跑仍可命中跳过
+        dest = out_dir / f"{fname}_{aweme_id[:8]}.mp4"
         if _exists_nonempty(dest) and not redownload:
             log(f"  [·] {t(lang, 'exists')}: {dest.name}")
         elif download(video_url, dest, session, {"User-Agent": UA_MOBILE}, label=video_label, log=log, quiet=quiet):
@@ -496,7 +497,7 @@ def download_one(link_or_text: str, out_dir: Path, session: requests.Session,
     elif info["type"] == "images" and info["images"]:
         log(f"  [*] {t(lang, 'album_info', n=len(info['images']), author=info['author'] or '未知')}")
         base = sanitize_name(f"{info['author']}_{info['title']}") or aweme_id
-        sub = out_dir / base
+        sub = out_dir / f"{base}_{aweme_id[:8]}"
         sub.mkdir(parents=True, exist_ok=True)
         ok = 0
         for i, img_url in enumerate(info["images"], 1):
