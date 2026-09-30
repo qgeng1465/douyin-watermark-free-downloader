@@ -7,6 +7,10 @@
 python douyin_dl.py "7.43 复制打开抖音，看看视频 https://v.douyin.com/xxxx/ 复制此链接"
 ```
 
+## 🌏 English
+
+**Douyin watermark-free downloader** — paste a Douyin share link and get the original video (no watermark) or the full image gallery. GUI & CLI modes, batch download from a list file, resumable `.part` downloads, optional cover & background music. Pure Python — only `requests`, no login, no browser. English UI: `python douyin_dl.py --lang en`.
+
 ## ✨ 功能特性
 
 - ✅ **无水印下载**：自动把 `playwm` 替换为 `play`，获取无水印版本
